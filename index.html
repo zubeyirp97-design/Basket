@@ -1,238 +1,287 @@
 
 <!DOCTYPE html>
 <html lang="tr">
-
-<style>
-    body {
-        margin: 0;
-        padding: 20px;
-        background-color: #163d35;
-        color: white;
-        font-family: Arial, sans-serif;
-        text-align: center;
-    }
-
-    h1 {
-        font-size: 32px;
-        margin-bottom: 8px;
-    }
-
-    p {
-        color: #d7e8df;
-        margin-bottom: 24px;
-    }
-
-    canvas {
-        display: block;
-        width: 100%;
-        max-width: 800px;
-        height: auto;
-        margin: 0 auto;
-        border: 4px solid white;
-        border-radius: 12px;
-        touch-action: none;
-    }
-</style>
-    
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bir Şut Daha!</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Titan Avcısı</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#14212b;color:white;font-family:Arial,sans-serif;overflow:hidden;touch-action:none}
+#gamebox{position:relative;width:100%;max-width:1100px;margin:auto}
+canvas{width:100%;height:auto;aspect-ratio:16/9;display:block;touch-action:none}
+#hud{position:absolute;top:9px;left:9px;right:9px;display:flex;justify-content:space-between;pointer-events:none;gap:8px}
+.panel{background:#182a2de8;border:1px solid #ffffff50;border-radius:9px;padding:8px;font-size:12px;font-weight:bold;line-height:1.6}
+#msg{position:absolute;top:75px;left:50%;transform:translateX(-50%);background:#17272ddd;padding:7px 10px;border-radius:8px;font-size:11px;text-align:center;white-space:nowrap;pointer-events:none}
+#controls{position:absolute;bottom:10px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:end}
+.group{display:flex;gap:7px}
+button{width:49px;height:49px;border:1px solid #ffffff70;border-radius:13px;background:#203a4bea;color:white;font-size:22px;font-weight:bold;touch-action:none}
+#hook{background:#197487;width:57px;height:57px}
+#attack{background:#ad3d35;width:60px;height:60px}
+#restart{position:absolute;right:10px;top:79px;width:auto;height:30px;padding:0 10px;font-size:12px}
+#help{position:absolute;bottom:75px;left:50%;transform:translateX(-50%);background:#17272dcc;padding:5px 8px;border-radius:7px;font-size:10px;white-space:nowrap;pointer-events:none}
+@media(min-width:700px){button{width:56px;height:56px}#hook,#attack{width:66px;height:66px}}
+</style>
 </head>
-
 <body>
-    <h1>Bir Şut Daha! 🏀</h1>
-    <p>İlk basketbol oyunumuz!</p>
-
-    <canvas id="oyunAlani" width="800" height="500"></canvas>
-
-    <script>
-
-const canvas = document.getElementById("oyunAlani");
-const ctx = canvas.getContext("2d");
-
-let ball = { x: 150, y: 326, vx: 0, vy: 0, r: 18 };
-let aiming = false;
-let startX = 0;
-let startY = 0;
-let score = 0;
-let shots = 0;
-
-const gravity = 0.35;
-
-function draw() {
-    // Gökyüzü
-    ctx.fillStyle = "#b8e4d6";
-    ctx.fillRect(0, 0, 800, 500);
-
-    // Zemin
-    ctx.fillStyle = "#e7bd77";
-    ctx.fillRect(0, 350, 800, 150);
-
-    // Pota direği ve tahta
-    ctx.fillStyle = "#637b78";
-    ctx.fillRect(670, 170, 12, 280);
-
-    ctx.fillStyle = "white";
-    ctx.fillRect(610, 140, 90, 60);
-
-    // Çember ve file
-    ctx.strokeStyle = "#ef6b35";
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.moveTo(600, 210);
-    ctx.lineTo(660, 210);
-    ctx.stroke();
-
-    ctx.strokeStyle = "white";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(605, 212);
-    ctx.lineTo(615, 245);
-    ctx.lineTo(645, 245);
-    ctx.lineTo(655, 212);
-    ctx.stroke();
-
-    // Basit basketbolcu
-    ctx.fillStyle = "#ef6b35";
-    ctx.fillRect(130, 355, 40, 42);
-
-    ctx.strokeStyle = "#294c49";
-    ctx.lineWidth = 12;
-    ctx.beginPath();
-    ctx.moveTo(140, 397);
-    ctx.lineTo(138, 432);
-    ctx.moveTo(160, 397);
-    ctx.lineTo(162, 432);
-    ctx.stroke();
-
-    ctx.fillStyle = "#b97952";
-    ctx.beginPath();
-    ctx.arc(150, 340, 17, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Basketbol topu
-    ctx.fillStyle = "#ef6b35";
-    ctx.beginPath();
-    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = "#71361f";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(ball.x - ball.r, ball.y);
-    ctx.lineTo(ball.x + ball.r, ball.y);
-    ctx.moveTo(ball.x, ball.y - ball.r);
-    ctx.lineTo(ball.x, ball.y + ball.r);
-    ctx.stroke();
-
-    // Nişan çizgisi
-    if (aiming) {
-        ctx.strokeStyle = "white";
-        ctx.setLineDash([6, 6]);
-        ctx.beginPath();
-        ctx.moveTo(ball.x, ball.y);
-        ctx.lineTo(
-            ball.x + (startX - ball.x) * 0.7,
-            ball.y + (startY - ball.y) * 0.7
-        );
-        ctx.stroke();
-        ctx.setLineDash([]);
-    }
-
-    // Skor
-    ctx.fillStyle = "#163d35";
-    ctx.font = "bold 22px Arial";
-    ctx.fillText("Basket: " + score + " / " + shots, 20, 35);
+<div id="gamebox">
+<canvas id="game" width="960" height="540"></canvas>
+<div id="hud">
+ <div class="panel">TITAN AVCISI<br>CAN: <span id="hp">♥ ♥ ♥</span><br>PUAN: <span id="score">0</span></div>
+ <div class="panel">TİTAN<br><span id="enemyhp">100 HP</span></div>
+</div>
+<div id="msg">Kancayı kullan, havalan ve Titan'a saldır!</div>
+<button id="restart">↻ Yeniden</button>
+<div id="help">← → hareket · ↑ zıpla · K kanca · SPACE saldır</div>
+<div id="controls">
+ <div class="group"><button id="left">◀</button><button id="right">▶</button></div>
+ <div class="group"><button id="jump">↑</button><button id="hook">⌁</button><button id="attack">⚔</button></div>
+</div>
+</div>
+<script>
+(()=>{
+const c=document.getElementById('game'),ctx=c.getContext('2d');
+const W=960,H=540,G=450,$=id=>document.getElementById(id);
+const buildings=[
+{x:50,w:100,h:170},{x:190,w:95,h:225},{x:330,w:105,h:155},
+{x:485,w:100,h:200},{x:640,w:100,h:235},{x:795,w:105,h:175}
+];
+let p,enemies,score,hp,frame,hook,slash,invuln,gameover,win,spawn,shake;
+let keys={},touch={},prev={},msg='';
+function reset(){
+ p={x:140,y:G-70,vx:0,vy:0,dir:1,ground:true};
+ enemies=[];score=0;hp=3;frame=0;hook=null;slash=0;invuln=0;
+ gameover=false;win=false;spawn=30;shake=0;
+ msg='Kanca ile havalan. Saldırı için Titan’a yaklaş!';
+ updateHUD();
 }
-
-function resetBall() {
-    ball.x = 150;
-    ball.y = 326;
-    ball.vx = 0;
-    ball.vy = 0;
+function updateHUD(){
+ $('hp').textContent='♥ '.repeat(Math.max(0,hp))||'0';
+ $('score').textContent=score;
+ $('enemyhp').textContent=enemies.length?Math.max(0,enemies[0].hp)+' HP':'YAKLAŞIYOR';
+ $('msg').textContent=msg;
 }
-
-function update() {
-    if (ball.vx !== 0 || ball.vy !== 0) {
-        const oldY = ball.y;
-
-        ball.x += ball.vx;
-        ball.y += ball.vy;
-        ball.vy += gravity;
-
-        // Top çember seviyesinden aşağı geçerse
-        if (
-            oldY < 210 &&
-            ball.y >= 210 &&
-            ball.x > 605 &&
-            ball.x < 655 &&
-            ball.vy > 0
-        ) {
-            score++;
-            resetBall();
-            shots++;
-            return;
-        }
-
-        // Top yere düşerse
-        if (ball.y >= 432 || ball.x > 820 || ball.y > 520) {
-            resetBall();
-            shots++;
-        }
-    }
-
-    draw();
-    requestAnimationFrame(update);
+function bind(id,k){
+ const el=$(id);
+ el.addEventListener('pointerdown',e=>{
+  e.preventDefault();touch[k]=true;
+  try{el.setPointerCapture(e.pointerId)}catch(_){}
+ });
+ for(const ev of ['pointerup','pointercancel','lostpointercapture'])
+ el.addEventListener(ev,e=>{touch[k]=false;});
 }
-
-function pointerPosition(event) {
-    const rect = canvas.getBoundingClientRect();
-
-    return {
-        x: (event.clientX - rect.left) * 800 / rect.width,
-        y: (event.clientY - rect.top) * 500 / rect.height
-    };
-}
-
-canvas.addEventListener("pointerdown", function(event) {
-    const p = pointerPosition(event);
-
-    if (
-        Math.hypot(p.x - ball.x, p.y - ball.y) < 45 &&
-        ball.vx === 0 &&
-        ball.vy === 0
-    ) {
-        aiming = true;
-        startX = p.x;
-        startY = p.y;
-        canvas.setPointerCapture(event.pointerId);
-    }
+['left','right','jump','hook','attack'].forEach(k=>bind(k,k));
+$('restart').onclick=reset;
+window.addEventListener('keydown',e=>{
+ keys[e.code]=true;
+ if(['ArrowLeft','ArrowRight','ArrowUp','Space'].includes(e.code))e.preventDefault();
 });
-
-canvas.addEventListener("pointermove", function(event) {
-    if (aiming) {
-        const p = pointerPosition(event);
-        startX = p.x;
-        startY = p.y;
+window.addEventListener('keyup',e=>keys[e.code]=false);
+function down(k){return !!(keys[k]||touch[k]);}
+function spawnTitan(){
+ if(enemies.length>=4)return;
+ enemies.push({x:970+Math.random()*90,y:G-145,hp:100,max:100,
+ speed:.25+Math.random()*.17,skin:['#b9826d','#ce9c80','#a97566'][Math.floor(Math.random()*3)],
+ flash:0,attack:0,dead:false});
+}
+function attachHook(){
+ let options=buildings.map(b=>({
+  x:Math.max(b.x+10,Math.min(b.x+b.w-10,p.x+p.dir*180)),
+  y:G-b.h-10
+ })).filter(a=>(a.x-p.x)*p.dir>10);
+ if(!options.length)options=[{x:p.x+p.dir*200,y:155}];
+ options.sort((a,b)=>Math.abs(a.x-p.x)-Math.abs(b.x-p.x));
+ hook={x:options[0].x,y:options[0].y,life:150};
+ msg='Kanca tutundu! Yön tuşlarıyla hareket et.';
+}
+function hit(t){
+ if(t.dead)return;
+ t.hp-=50;t.flash=12;shake=6;
+ msg=t.hp<=0?'TITAN KESİLDİ! +100 PUAN':'İSABET! Bir darbe daha!';
+ if(t.hp<=0){t.dead=true;score+=100;}
+}
+function update(){
+ if(gameover||win)return;
+ frame++;
+ if(invuln>0)invuln--;
+ if(shake>0)shake*=.8;
+ let L=down('left'),R=down('right'),J=down('jump'),
+ K=down('hook'),A=down('attack');
+ if(K&&!prev.hook&&!hook)attachHook();
+ if(!K&&prev.hook)hook=null;
+ if(J&&!prev.jump&&p.ground){p.vy=-10;p.ground=false;}
+ if(A&&!prev.attack)slash=15;
+ prev={hook:K,jump:J,attack:A};
+ if(L){p.vx-=.75;p.dir=-1;}
+ if(R){p.vx+=.75;p.dir=1;}
+ p.vx*=p.ground?.82:.99;
+ p.vx=Math.max(-8,Math.min(8,p.vx));
+ if(hook){
+  let dx=hook.x-p.x,dy=hook.y-(p.y+25),d=Math.hypot(dx,dy)||1;
+  p.vx+=dx/d*.78;
+  p.vy+=dy/d*.78;
+  hook.life--;
+  if(hook.life<=0||d<22)hook=null;
+ }
+ p.vy+=.3;p.vy=Math.min(p.vy,9);
+ p.x+=p.vx;p.y+=p.vy;
+ if(p.y+70>=G){p.y=G-70;p.vy=0;p.ground=true;}
+ else p.ground=false;
+ p.x=Math.max(15,Math.min(W-35,p.x));
+ if(slash>0){
+  slash--;
+  if(slash===10){
+   let target=null,best=9999;
+   for(let t of enemies){
+    if(t.dead)continue;
+    let dx=t.x-p.x,dy=(t.y+35)-(p.y+25);
+    if(Math.abs(dx)<145&&Math.abs(dy)<135&&dx*p.dir>-20){
+     let d=Math.abs(dx)+Math.abs(dy)*.5;
+     if(d<best){best=d;target=t;}
     }
-});
-
-canvas.addEventListener("pointerup", function() {
-    if (!aiming) return;
-
-    aiming = false;
-
-    const dx = ball.x - startX;
-    const dy = ball.y - startY;
-
-    if (Math.hypot(dx, dy) > 15) {
-        ball.vx = Math.max(2, Math.min(12, dx * 0.06));
-        ball.vy = Math.max(-13, Math.min(-4, dy * 0.06));
-    }
-});
-
-update();
-    </script>
+   }
+   if(target)hit(target);
+   else msg='Biraz yaklaş ve kılıç düğmesine bas!';
+  }
+ }
+ spawn--;
+ if(spawn<=0){spawnTitan();spawn=190+Math.random()*90;}
+ for(let t of enemies){
+  if(t.dead)continue;
+  if(t.flash>0)t.flash--;
+  t.x-=t.speed;
+  if(Math.abs(t.x-p.x)<65&&t.attack<=0){
+   t.attack=90;
+   if(invuln===0){
+    hp--;invuln=110;shake=8;msg='Titan vurdu! Kaç ve kancanı kullan!';
+    if(hp<=0){gameover=true;msg='ASKER DÜŞTÜ! Yeniden dene.';}
+   }
+  }
+  if(t.attack>0)t.attack--;
+ }
+ enemies=enemies.filter(t=>!t.dead&&t.x>-100);
+ if(score>=500){win=true;msg='ŞEHİR KURTARILDI!';}
+ updateHUD();
+}
+function poly(a,col){
+ ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(a[0][0],a[0][1]);
+ for(let i=1;i<a.length;i++)ctx.lineTo(a[i][0],a[i][1]);
+ ctx.closePath();ctx.fill();
+}
+function background(){
+ let sky=ctx.createLinearGradient(0,0,0,H);
+ sky.addColorStop(0,'#91c8db');sky.addColorStop(1,'#e8e0c8');
+ ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+ ctx.fillStyle='#ffffff65';
+ for(let i=0;i<5;i++){
+  let x=(i*230-frame*.1+2000)%1100;
+  ctx.beginPath();ctx.ellipse(x,70+i%2*35,43,12,0,0,7);ctx.fill();
+ }
+ // Surlar
+ ctx.fillStyle='#999e96';ctx.fillRect(0,180,W,105);
+ ctx.fillStyle='#c5c2b4';
+ for(let x=0;x<W;x+=65)ctx.fillRect(x,166,45,20);
+ ctx.fillStyle='#7c8983';
+ for(let x=0;x<W;x+=70)ctx.fillRect(x,205,3,70);
+ // Binalar
+ for(let b of buildings){
+  let y=G-b.h;
+  ctx.fillStyle='#a79c87';ctx.fillRect(b.x,y,b.w,b.h);
+  poly([[b.x-8,y+2],[b.x+b.w/2,y-22],[b.x+b.w+8,y+2]],'#687973');
+  for(let wy=y+25;wy<G-15;wy+=34)
+  for(let wx=b.x+13;wx<b.x+b.w-8;wx+=26){
+   ctx.fillStyle='#49646b';ctx.fillRect(wx,wy,12,17);
+   ctx.fillStyle='#e2d6ad';ctx.fillRect(wx+2,wy+2,3,13);
+  }
+ }
+ ctx.fillStyle='#c7b28e';ctx.fillRect(0,G,W,H-G);
+ ctx.fillStyle='#aa9779';ctx.fillRect(0,G,W,5);
+ ctx.strokeStyle='#e8d4b0';ctx.setLineDash([20,15]);
+ ctx.beginPath();ctx.moveTo(0,505);ctx.lineTo(W,505);ctx.stroke();ctx.setLineDash([]);
+}
+function soldier(){
+ let x=p.x,y=p.y;
+ ctx.save();ctx.translate(x+18,y+35);
+ ctx.rotate(Math.max(-.45,Math.min(.45,p.vx*.035)));
+ // Yeşil pelerin
+ poly([[-9,-17],[-21,-12],[-29,31],[-7,28],[4,0]],'#486c42');
+ // Bacaklar ve botlar
+ ctx.strokeStyle='#4a493e';ctx.lineWidth=9;ctx.lineCap='round';
+ ctx.beginPath();ctx.moveTo(-6,12);ctx.lineTo(-13,29);ctx.lineTo(-19,31);
+ ctx.moveTo(6,12);ctx.lineTo(12,28);ctx.lineTo(19,30);ctx.stroke();
+ // Üniforma
+ poly([[-11,-20],[10,-20],[14,12],[-12,12]],'#8c9a79');
+ ctx.strokeStyle='#473f33';ctx.lineWidth=3;
+ ctx.beginPath();ctx.moveTo(-9,-17);ctx.lineTo(9,8);ctx.moveTo(9,-17);ctx.lineTo(-9,8);ctx.stroke();
+ ctx.fillStyle='#747d6a';ctx.fillRect(-15,-3,6,13);ctx.fillRect(10,-3,6,13);
+ ctx.strokeStyle='#b98260';ctx.lineWidth=6;
+ ctx.beginPath();ctx.moveTo(-8,-15);ctx.lineTo(-17,-4);ctx.moveTo(8,-15);ctx.lineTo(19,-7);ctx.stroke();
+ // Baş
+ ctx.fillStyle='#d9ae8d';ctx.beginPath();ctx.arc(0,-28,10,0,7);ctx.fill();
+ poly([[-10,-27],[-8,-38],[4,-39],[10,-32],[5,-31],[0,-35],[-5,-30]],'#453a32');
+ // Çift kılıç
+ ctx.save();ctx.rotate(p.dir===1?-.3:Math.PI+.3);
+ ctx.fillStyle='#e2ecee';poly([[12,-7],[43,-13],[44,-9],[14,-3]],'#e2ecee');
+ ctx.fillStyle='#72553b';ctx.fillRect(9,-12,5,13);ctx.restore();
+ ctx.restore();
+ if(hook){
+  ctx.strokeStyle='#343c40';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(x+18,y+18);ctx.lineTo(hook.x,hook.y);ctx.stroke();
+  ctx.fillStyle='#f0f1df';ctx.beginPath();ctx.arc(hook.x,hook.y,4,0,7);ctx.fill();
+ }
+ if(slash>0){
+  ctx.strokeStyle='#f9f6d9';ctx.lineWidth=5;ctx.beginPath();
+  ctx.arc(x+18+p.dir*25,y+27,49,-1.3,1.2);ctx.stroke();
+ }
+}
+function titan(t){
+ ctx.save();ctx.translate(t.x,t.y);
+ let s=t.flash?'#f7d4bc':t.skin;
+ // Gövde
+ ctx.fillStyle=s;ctx.beginPath();ctx.ellipse(34,48,26,36,0,0,7);ctx.fill();
+ ctx.beginPath();ctx.ellipse(8,62,10,35,-.3,0,7);ctx.ellipse(61,62,10,35,.3,0,7);ctx.fill();
+ // Bacaklar
+ ctx.strokeStyle=s;ctx.lineWidth=17;ctx.lineCap='round';
+ ctx.beginPath();ctx.moveTo(23,73);ctx.lineTo(17,119);ctx.lineTo(10,139);
+ ctx.moveTo(44,73);ctx.lineTo(51,119);ctx.lineTo(57,139);ctx.stroke();
+ ctx.fillStyle='#79635b';ctx.fillRect(1,136,22,8);ctx.fillRect(48,136,22,8);
+ // Baş ve saç
+ ctx.fillStyle=s;ctx.beginPath();ctx.ellipse(34,7,18,24,0,0,7);ctx.fill();
+ poly([[17,-1],[13,-14],[24,-20],[40,-19],[53,-10],[50,-1],[43,-8],[34,-10],[25,-4]],'#51443d');
+ ctx.fillStyle='#493a36';ctx.fillRect(22,2,8,3);ctx.fillRect(38,2,8,3);
+ ctx.fillStyle='#f4e2d1';ctx.fillRect(27,13,15,4);
+ ctx.fillStyle='#8e493e';ctx.fillRect(29,14,11,2);
+ // Ensedeki hedef
+ ctx.fillStyle='#9b5145';ctx.fillRect(19,36,30,11);
+ ctx.fillStyle='#ffb5a0';ctx.fillRect(23,39,22,4);
+ // Can barı
+ ctx.fillStyle='#292929';ctx.fillRect(0,-30,68,6);
+ ctx.fillStyle='#d85042';ctx.fillRect(1,-29,66*Math.max(0,t.hp)/t.max,4);
+ ctx.restore();
+}
+function draw(){
+ ctx.save();
+ if(shake>1)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
+ background();
+ for(let t of enemies)titan(t);
+ if(invuln%10<6||invuln===0)soldier();
+ if(gameover||win){
+  ctx.fillStyle='#101923d9';ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';ctx.fillStyle='white';ctx.font='bold 34px Arial';
+  ctx.fillText(win?'ŞEHİR KURTARILDI!':'ASKER DÜŞTÜ',W/2,230);
+  ctx.font='bold 19px Arial';ctx.fillText('Puan: '+score,W/2,270);
+  ctx.textAlign='left';
+ }
+ ctx.restore();
+}
+let last=0,acc=0;
+function loop(t){
+ acc+=Math.min(40,t-last);last=t;
+ while(acc>=16.67){update();acc-=16.67;}
+ draw();requestAnimationFrame(loop);
+}
+reset();requestAnimationFrame(loop);
+})();
+</script>
 </body>
 </html>
