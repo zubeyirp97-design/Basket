@@ -47,94 +47,192 @@
     <canvas id="oyunAlani" width="800" height="500"></canvas>
 
     <script>
-        const canvas = document.getElementById("oyunAlani");
-        const ctx = canvas.getContext("2d");
 
-        // Gökyüzü
-        ctx.fillStyle = "#b8e4d6";
-        ctx.fillRect(0, 0, 800, 500);
+const canvas = document.getElementById("oyunAlani");
+const ctx = canvas.getContext("2d");
 
-        // Basketbol sahası
-        ctx.fillStyle = "#e7bd77";
-        ctx.fillRect(0, 350, 800, 150);
+let ball = { x: 150, y: 326, vx: 0, vy: 0, r: 18 };
+let aiming = false;
+let startX = 0;
+let startY = 0;
+let score = 0;
+let shots = 0;
 
-        // Saha çizgisi
+const gravity = 0.35;
+
+function draw() {
+    // Gökyüzü
+    ctx.fillStyle = "#b8e4d6";
+    ctx.fillRect(0, 0, 800, 500);
+
+    // Zemin
+    ctx.fillStyle = "#e7bd77";
+    ctx.fillRect(0, 350, 800, 150);
+
+    // Pota direği ve tahta
+    ctx.fillStyle = "#637b78";
+    ctx.fillRect(670, 170, 12, 280);
+
+    ctx.fillStyle = "white";
+    ctx.fillRect(610, 140, 90, 60);
+
+    // Çember ve file
+    ctx.strokeStyle = "#ef6b35";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(600, 210);
+    ctx.lineTo(660, 210);
+    ctx.stroke();
+
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(605, 212);
+    ctx.lineTo(615, 245);
+    ctx.lineTo(645, 245);
+    ctx.lineTo(655, 212);
+    ctx.stroke();
+
+    // Basit basketbolcu
+    ctx.fillStyle = "#ef6b35";
+    ctx.fillRect(130, 355, 40, 42);
+
+    ctx.strokeStyle = "#294c49";
+    ctx.lineWidth = 12;
+    ctx.beginPath();
+    ctx.moveTo(140, 397);
+    ctx.lineTo(138, 432);
+    ctx.moveTo(160, 397);
+    ctx.lineTo(162, 432);
+    ctx.stroke();
+
+    ctx.fillStyle = "#b97952";
+    ctx.beginPath();
+    ctx.arc(150, 340, 17, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Basketbol topu
+    ctx.fillStyle = "#ef6b35";
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = "#71361f";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(ball.x - ball.r, ball.y);
+    ctx.lineTo(ball.x + ball.r, ball.y);
+    ctx.moveTo(ball.x, ball.y - ball.r);
+    ctx.lineTo(ball.x, ball.y + ball.r);
+    ctx.stroke();
+
+    // Nişan çizgisi
+    if (aiming) {
         ctx.strokeStyle = "white";
-        ctx.lineWidth = 4;
+        ctx.setLineDash([6, 6]);
         ctx.beginPath();
-        ctx.moveTo(0, 450);
-        ctx.lineTo(800, 450);
+        ctx.moveTo(ball.x, ball.y);
+        ctx.lineTo(
+            ball.x + (startX - ball.x) * 0.7,
+            ball.y + (startY - ball.y) * 0.7
+        );
         ctx.stroke();
+        ctx.setLineDash([]);
+    }
 
-        // Pota direği
-        ctx.fillStyle = "#637b78";
-        ctx.fillRect(650, 170, 12, 280);
+    // Skor
+    ctx.fillStyle = "#163d35";
+    ctx.font = "bold 22px Arial";
+    ctx.fillText("Basket: " + score + " / " + shots, 20, 35);
+}
 
-        // Pota tahtası
-        ctx.fillStyle = "white";
-        ctx.fillRect(610, 140, 90, 60);
+function resetBall() {
+    ball.x = 150;
+    ball.y = 326;
+    ball.vx = 0;
+    ball.vy = 0;
+}
 
-        // Çember
-        ctx.strokeStyle = "#ef6b35";
-        ctx.lineWidth = 6;
-        ctx.beginPath();
-        ctx.moveTo(600, 210);
-        ctx.lineTo(660, 210);
-        ctx.stroke();
+function update() {
+    if (ball.vx !== 0 || ball.vy !== 0) {
+        const oldY = ball.y;
 
-        // Oyuncunun gölgesi
-        ctx.fillStyle = "#b18a55";
-        ctx.beginPath();
-        ctx.ellipse(150, 445, 32, 7, 0, 0, Math.PI * 2);
-        ctx.fill();
+        ball.x += ball.vx;
+        ball.y += ball.vy;
+        ball.vy += gravity;
 
-        // Ayakkabılar
-        ctx.fillStyle = "#263f3b";
-        ctx.fillRect(128, 430, 22, 10);
-        ctx.fillRect(153, 430, 22, 10);
+        // Top çember seviyesinden aşağı geçerse
+        if (
+            oldY < 210 &&
+            ball.y >= 210 &&
+            ball.x > 605 &&
+            ball.x < 655 &&
+            ball.vy > 0
+        ) {
+            score++;
+            resetBall();
+            shots++;
+            return;
+        }
 
-        // Bacaklar
-        ctx.strokeStyle = "#294c49";
-        ctx.lineWidth = 12;
-        ctx.lineCap = "round";
-        ctx.beginPath();
-        ctx.moveTo(140, 425);
-        ctx.lineTo(140, 395);
-        ctx.moveTo(162, 425);
-        ctx.lineTo(162, 395);
-        ctx.stroke();
+        // Top yere düşerse
+        if (ball.y >= 432 || ball.x > 820 || ball.y > 520) {
+            resetBall();
+            shots++;
+        }
+    }
 
-        // Forma
-        ctx.fillStyle = "#ef6b35";
-        ctx.fillRect(130, 355, 42, 42);
+    draw();
+    requestAnimationFrame(update);
+}
 
-        // Kollar
-        ctx.strokeStyle = "#b97952";
-        ctx.lineWidth = 9;
-        ctx.beginPath();
-        ctx.moveTo(132, 365);
-        ctx.lineTo(117, 390);
-        ctx.moveTo(170, 365);
-        ctx.lineTo(185, 390);
-        ctx.stroke();
+function pointerPosition(event) {
+    const rect = canvas.getBoundingClientRect();
 
-        // Kafa
-        ctx.fillStyle = "#b97952";
-        ctx.beginPath();
-        ctx.arc(151, 341, 17, 0, Math.PI * 2);
-        ctx.fill();
+    return {
+        x: (event.clientX - rect.left) * 800 / rect.width,
+        y: (event.clientY - rect.top) * 500 / rect.height
+    };
+}
 
-        // Saç
-        ctx.fillStyle = "#253b38";
-        ctx.beginPath();
-        ctx.arc(151, 337, 17, Math.PI, Math.PI * 2);
-        ctx.fill();
-        
-        // Basketbol topu
-        ctx.fillStyle = "#ef6b35";
-        ctx.beginPath();
-        ctx.arc(150, 325, 18, 0, Math.PI * 2);
-        ctx.fill();
+canvas.addEventListener("pointerdown", function(event) {
+    const p = pointerPosition(event);
+
+    if (
+        Math.hypot(p.x - ball.x, p.y - ball.y) < 45 &&
+        ball.vx === 0 &&
+        ball.vy === 0
+    ) {
+        aiming = true;
+        startX = p.x;
+        startY = p.y;
+        canvas.setPointerCapture(event.pointerId);
+    }
+});
+
+canvas.addEventListener("pointermove", function(event) {
+    if (aiming) {
+        const p = pointerPosition(event);
+        startX = p.x;
+        startY = p.y;
+    }
+});
+
+canvas.addEventListener("pointerup", function() {
+    if (!aiming) return;
+
+    aiming = false;
+
+    const dx = ball.x - startX;
+    const dy = ball.y - startY;
+
+    if (Math.hypot(dx, dy) > 15) {
+        ball.vx = Math.max(2, Math.min(12, dx * 0.06));
+        ball.vy = Math.max(-13, Math.min(-4, dy * 0.06));
+    }
+});
+
+update();
     </script>
 </body>
 </html>
