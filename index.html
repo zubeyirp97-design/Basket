@@ -6,10 +6,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bir Şut Daha!</title>
 </head>
-<body>
 
+<body>
     <h1>Bir Şut Daha! 🏀</h1>
     <p>İlk basketbol oyunumuz!</p>
 
+    <canvas id="oyunAlani" width="800" height="500"></canvas>
+
+    <script>
+        const canvas = document.getElementById("oyunAlani");
+        const ctx = canvas.getContext("2d");
+
+        // Gökyüzü
+        ctx.fillStyle = "#b8e4d6";
+        ctx.fillRect(0, 0, 800, 500);
+
+        // Basketbol sahası
+        ctx.fillStyle = "#e7bd77";
+        ctx.fillRect(0, 350, 800, 150);
+
+        // Saha çizgisi
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(0, 450);
+        ctx.lineTo(800, 450);
+        ctx.stroke();
+
+        // Pota direği
+        ctx.fillStyle = "#637b78";
+        ctx.fillRect(650, 170, 12, 280);
+
+        // Pota tahtası
+        ctx.fillStyle = "white";
+        ctx.fillRect(610, 140, 90, 60);
+
+        // Çember
+        ctx.strokeStyle = "#ef6b35";
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(600, 210);
+        ctx.lineTo(660, 210);
+        ctx.stroke();
+
+        // Basketbol topu
+        ctx.fillStyle = "#ef6b35";
+        ctx.beginPath();
+        ctx.arc(150, 325, 18, 0, Math.PI * 2);
+        ctx.fill();
+    </script>
 </body>
 </html>
