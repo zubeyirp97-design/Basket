@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Titan Avcısı</title>
+<title>Titan Avcısı — ODM Edition</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#14212b;color:white;font-family:Arial,sans-serif;overflow:hidden;touch-action:none}
@@ -28,11 +28,11 @@ button{width:49px;height:49px;border:1px solid #ffffff70;border-radius:13px;back
 <canvas id="game" width="960" height="540"></canvas>
 <div id="hud">
  <div class="panel">TITAN AVCISI<br>CAN: <span id="hp">♥ ♥ ♥</span><br>PUAN: <span id="score">0</span></div>
- <div class="panel">TİTAN<br><span id="enemyhp">100 HP</span></div>
+ <div class="panel">ODM SİSTEMİ<br><span id="enemyhp">100 HP</span></div>
 </div>
-<div id="msg">Kancayı kullan, havalan ve Titan'a saldır!</div>
+<div id="msg">Kancayı fırlat, ip gerilsin ve havalan!</div>
 <button id="restart">↻ Yeniden</button>
-<div id="help">← → hareket · ↑ zıpla · K kanca · SPACE saldır</div>
+<div id="help">← → hareket · ↑ zıpla · K / ⌁ kanca · SPACE / ⚔ saldır</div>
 <div id="controls">
  <div class="group"><button id="left">◀</button><button id="right">▶</button></div>
  <div class="group"><button id="jump">↑</button><button id="hook">⌁</button><button id="attack">⚔</button></div>
@@ -47,12 +47,12 @@ const buildings=[
 {x:485,w:100,h:200},{x:640,w:100,h:235},{x:795,w:105,h:175}
 ];
 let p,enemies,score,hp,frame,hook,slash,invuln,gameover,win,spawn,shake;
-let keys={},touch={},prev={},msg='';
+let keys={},touch={},prev={},particles=[],msg='';
 function reset(){
- p={x:140,y:G-70,vx:0,vy:0,dir:1,ground:true};
+ p={x:140,y:G-70,vx:0,vy:0,dir:1,ground:true,rot:0,boost:0};
  enemies=[];score=0;hp=3;frame=0;hook=null;slash=0;invuln=0;
- gameover=false;win=false;spawn=30;shake=0;
- msg='Kanca ile havalan. Saldırı için Titan’a yaklaş!';
+ gameover=false;win=false;spawn=30;shake=0;particles=[];
+ msg='Kancayı fırlat. İp gerilince yön tuşlarıyla savrul!';
  updateHUD();
 }
 function updateHUD(){
@@ -82,52 +82,84 @@ function spawnTitan(){
  if(enemies.length>=4)return;
  enemies.push({x:970+Math.random()*90,y:G-145,hp:100,max:100,
  speed:.25+Math.random()*.17,skin:['#b9826d','#ce9c80','#a97566'][Math.floor(Math.random()*3)],
- flash:0,attack:0,dead:false});
+ flash:0,attack:0,dead:false,phase:Math.random()*6});
 }
 function attachHook(){
  let options=buildings.map(b=>({
   x:Math.max(b.x+10,Math.min(b.x+b.w-10,p.x+p.dir*180)),
   y:G-b.h-10
  })).filter(a=>(a.x-p.x)*p.dir>10);
- if(!options.length)options=[{x:p.x+p.dir*200,y:155}];
- options.sort((a,b)=>Math.abs(a.x-p.x)-Math.abs(b.x-p.x));
- hook={x:options[0].x,y:options[0].y,life:150};
- msg='Kanca tutundu! Yön tuşlarıyla hareket et.';
+ if(!options.length)options=[{x:Math.max(25,Math.min(W-25,p.x+p.dir*200)),y:155}];
+ options.sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y));
+ const a=options[0];
+ hook={x:a.x,y:a.y,life:190,phase:'shoot',t:0,
+  fromX:p.x+18,fromY:p.y+18,side:Math.random()<.5?-1:1};
+ particles.push({x:p.x+18,y:p.y+18,vx:p.dir*3,vy:-1,life:12,type:'muzzle'});
+ msg='Kanca fırlatıldı!';
+}
+function burst(x,y,n,color){
+ for(let i=0;i<n;i++){
+  const a=Math.random()*Math.PI*2,s=1+Math.random()*4;
+  particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:15+Math.random()*18,color,type:'spark'});
+ }
 }
 function hit(t){
  if(t.dead)return;
  t.hp-=50;t.flash=12;shake=6;
+ burst(t.x+30,t.y+40,14,'#f6d5ad');
  msg=t.hp<=0?'TITAN KESİLDİ! +100 PUAN':'İSABET! Bir darbe daha!';
- if(t.hp<=0){t.dead=true;score+=100;}
+ if(t.hp<=0){t.dead=true;score+=100;burst(t.x+30,t.y+60,24,'#d9b79a');}
 }
 function update(){
  if(gameover||win)return;
  frame++;
  if(invuln>0)invuln--;
- if(shake>0)shake*=.8;
+ if(shake>0)shake*=.82;
  let L=down('left'),R=down('right'),J=down('jump'),
  K=down('hook'),A=down('attack');
  if(K&&!prev.hook&&!hook)attachHook();
- if(!K&&prev.hook)hook=null;
- if(J&&!prev.jump&&p.ground){p.vy=-10;p.ground=false;}
- if(A&&!prev.attack)slash=15;
- prev={hook:K,jump:J,attack:A};
- if(L){p.vx-=.75;p.dir=-1;}
- if(R){p.vx+=.75;p.dir=1;}
- p.vx*=p.ground?.82:.99;
- p.vx=Math.max(-8,Math.min(8,p.vx));
- if(hook){
-  let dx=hook.x-p.x,dy=hook.y-(p.y+25),d=Math.hypot(dx,dy)||1;
-  p.vx+=dx/d*.78;
-  p.vy+=dy/d*.78;
-  hook.life--;
-  if(hook.life<=0||d<22)hook=null;
+ if(!K&&prev.hook&&hook){
+  burst(p.x+18,p.y+18,5,'#d7e8eb');
+  hook=null;msg='Kanca bırakıldı!';
  }
- p.vy+=.3;p.vy=Math.min(p.vy,9);
+ if(J&&!prev.jump&&p.ground){p.vy=-10;p.ground=false;burst(p.x+18,G,4,'#d8c6a0');}
+ if(A&&!prev.attack)slash=17;
+ prev={hook:K,jump:J,attack:A};
+
+ if(L){p.vx-=p.ground?.72:.42;p.dir=-1;}
+ if(R){p.vx+=p.ground?.72:.42;p.dir=1;}
+ p.vx*=p.ground?.83:.995;
+ p.vx=Math.max(-11,Math.min(11,p.vx));
+
+ if(hook){
+  hook.t++;
+  if(hook.phase==='shoot'&&hook.t>7){
+   hook.phase='attached';
+   burst(hook.x,hook.y,7,'#d8e5d9');
+   msg='Kanca tuttu! Savrulmak için yön değiştir!';
+  }
+  if(hook.phase==='attached'){
+   let dx=hook.x-(p.x+18),dy=hook.y-(p.y+25),d=Math.hypot(dx,dy)||1;
+   // Tension pulls the soldier toward the anchor.
+   const pull=Math.min(1.25,.46+d*.001);
+   p.vx+=dx/d*pull;
+   p.vy+=dy/d*pull;
+   // A little forward boost gives the swing a more energetic feel.
+   if(L||R)p.vx+=(R?1:-1)*.13;
+   if(d<55){p.vx+=dx/d*.45;p.vy+=dy/d*.45;}
+   hook.life--;
+   if(hook.life<=0){hook=null;msg='Kanca otomatik bırakıldı.';}
+  }
+ }
+ p.vy+=p.ground?.0:.28;
+ p.vy=Math.min(p.vy,10);
  p.x+=p.vx;p.y+=p.vy;
- if(p.y+70>=G){p.y=G-70;p.vy=0;p.ground=true;}
+ if(p.y+70>=G){p.y=G-70;if(p.vy>2)burst(p.x+18,G,2,'#d0b995');p.vy=0;p.ground=true;}
  else p.ground=false;
  p.x=Math.max(15,Math.min(W-35,p.x));
+ // Body lean follows the real movement direction.
+ const targetRot=Math.max(-.65,Math.min(.65,p.vx*.035-p.vy*.018));
+ p.rot+=(targetRot-p.rot)*.12;
  if(slash>0){
   slash--;
   if(slash===10){
@@ -135,7 +167,7 @@ function update(){
    for(let t of enemies){
     if(t.dead)continue;
     let dx=t.x-p.x,dy=(t.y+35)-(p.y+25);
-    if(Math.abs(dx)<145&&Math.abs(dy)<135&&dx*p.dir>-20){
+    if(Math.abs(dx)<150&&Math.abs(dy)<145&&dx*p.dir>-25){
      let d=Math.abs(dx)+Math.abs(dy)*.5;
      if(d<best){best=d;target=t;}
     }
@@ -149,15 +181,22 @@ function update(){
  for(let t of enemies){
   if(t.dead)continue;
   if(t.flash>0)t.flash--;
+  t.phase+=.035;
   t.x-=t.speed;
   if(Math.abs(t.x-p.x)<65&&t.attack<=0){
    t.attack=90;
    if(invuln===0){
-    hp--;invuln=110;shake=8;msg='Titan vurdu! Kaç ve kancanı kullan!';
+    hp--;invuln=110;shake=8;msg='Titan vurdu! Kancanı kullan!';
+    burst(p.x+18,p.y+30,12,'#edb8a2');
     if(hp<=0){gameover=true;msg='ASKER DÜŞTÜ! Yeniden dene.';}
    }
   }
   if(t.attack>0)t.attack--;
+ }
+ for(let i=particles.length-1;i>=0;i--){
+  const q=particles[i];q.x+=q.vx;q.y+=q.vy;
+  q.vx*=.97;q.vy=q.type==='muzzle'?q.vy+.08:q.vy+.12;q.life--;
+  if(q.life<=0)particles.splice(i,1);
  }
  enemies=enemies.filter(t=>!t.dead&&t.x>-100);
  if(score>=500){win=true;msg='ŞEHİR KURTARILDI!';}
@@ -170,20 +209,22 @@ function poly(a,col){
 }
 function background(){
  let sky=ctx.createLinearGradient(0,0,0,H);
- sky.addColorStop(0,'#91c8db');sky.addColorStop(1,'#e8e0c8');
+ sky.addColorStop(0,'#82b9d1');sky.addColorStop(1,'#e8dfc8');
  ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
- ctx.fillStyle='#ffffff65';
+ // Moving clouds
+ ctx.fillStyle='#ffffff55';
  for(let i=0;i<5;i++){
-  let x=(i*230-frame*.1+2000)%1100;
-  ctx.beginPath();ctx.ellipse(x,70+i%2*35,43,12,0,0,7);ctx.fill();
+  let x=(i*230-frame*.25+2000)%1100;
+  ctx.beginPath();ctx.ellipse(x,70+i%2*35,43,12,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(x+25,67+i%2*35,27,10,0,0,Math.PI*2);ctx.fill();
  }
- // Surlar
+ // Distant wall
  ctx.fillStyle='#999e96';ctx.fillRect(0,180,W,105);
  ctx.fillStyle='#c5c2b4';
  for(let x=0;x<W;x+=65)ctx.fillRect(x,166,45,20);
  ctx.fillStyle='#7c8983';
  for(let x=0;x<W;x+=70)ctx.fillRect(x,205,3,70);
- // Binalar
+ // Buildings
  for(let b of buildings){
   let y=G-b.h;
   ctx.fillStyle='#a79c87';ctx.fillRect(b.x,y,b.w,b.h);
@@ -199,62 +240,134 @@ function background(){
  ctx.strokeStyle='#e8d4b0';ctx.setLineDash([20,15]);
  ctx.beginPath();ctx.moveTo(0,505);ctx.lineTo(W,505);ctx.stroke();ctx.setLineDash([]);
 }
+function drawParticles(){
+ for(const q of particles){
+  ctx.globalAlpha=Math.min(1,q.life/12);
+  if(q.type==='muzzle'){
+   ctx.strokeStyle='#c5e8ed';ctx.lineWidth=3;
+   ctx.beginPath();ctx.moveTo(q.x,q.y);ctx.lineTo(q.x-q.vx*3,q.y-q.vy*3);ctx.stroke();
+  }else{
+   ctx.fillStyle=q.color||'#e6e9db';
+   ctx.beginPath();ctx.arc(q.x,q.y,Math.max(1,q.life*.13),0,Math.PI*2);ctx.fill();
+  }
+ }
+ ctx.globalAlpha=1;
+}
 function soldier(){
- let x=p.x,y=p.y;
- ctx.save();ctx.translate(x+18,y+35);
- ctx.rotate(Math.max(-.45,Math.min(.45,p.vx*.035)));
- // Yeşil pelerin
- poly([[-9,-17],[-21,-12],[-29,31],[-7,28],[4,0]],'#486c42');
- // Bacaklar ve botlar
- ctx.strokeStyle='#4a493e';ctx.lineWidth=9;ctx.lineCap='round';
- ctx.beginPath();ctx.moveTo(-6,12);ctx.lineTo(-13,29);ctx.lineTo(-19,31);
- ctx.moveTo(6,12);ctx.lineTo(12,28);ctx.lineTo(19,30);ctx.stroke();
- // Üniforma
+ const x=p.x,y=p.y;
+ ctx.save();
+ ctx.translate(x+18,y+35);
+ ctx.rotate(p.rot);
+ // Cape flutters harder as speed increases.
+ const wind=Math.max(-18,Math.min(18,-p.vx*1.7))+Math.sin(frame*.22)*4;
+ ctx.fillStyle='#344d36';
+ ctx.beginPath();ctx.moveTo(-8,-18);ctx.lineTo(-19,-13);
+ ctx.quadraticCurveTo(-25+wind*.3,3,-27+wind,30);
+ ctx.quadraticCurveTo(-15+wind*.5,27,-5,29);
+ ctx.quadraticCurveTo(2,5,4,0);ctx.closePath();ctx.fill();
+ ctx.strokeStyle='#718b55';ctx.lineWidth=1.5;
+ ctx.beginPath();ctx.moveTo(-13,-8);ctx.quadraticCurveTo(-18+wind*.5,9,-21+wind,25);ctx.stroke();
+ // Legs animate while running; tuck slightly in the air.
+ const run=Math.sin(frame*.28)*Math.min(1,Math.abs(p.vx)/3);
+ const tuck=p.ground?0:Math.min(8,Math.abs(p.vx)*.7);
+ ctx.strokeStyle='#4a493e';ctx.lineWidth=8;ctx.lineCap='round';
+ ctx.beginPath();
+ ctx.moveTo(-6,12);ctx.lineTo(-12+run*7,25-tuck);ctx.lineTo(-18+run*8,29-tuck);
+ ctx.moveTo(6,12);ctx.lineTo(12-run*7,25-tuck);ctx.lineTo(18-run*8,29-tuck);
+ ctx.stroke();
+ // Boots
+ ctx.strokeStyle='#252e2c';ctx.lineWidth=5;
+ ctx.beginPath();ctx.moveTo(-18+run*8,29-tuck);ctx.lineTo(-22+run*8,30-tuck);
+ ctx.moveTo(18-run*8,29-tuck);ctx.lineTo(22-run*8,30-tuck);ctx.stroke();
+ // Uniform body
  poly([[-11,-20],[10,-20],[14,12],[-12,12]],'#8c9a79');
- ctx.strokeStyle='#473f33';ctx.lineWidth=3;
+ ctx.strokeStyle='#473f33';ctx.lineWidth=2.5;
  ctx.beginPath();ctx.moveTo(-9,-17);ctx.lineTo(9,8);ctx.moveTo(9,-17);ctx.lineTo(-9,8);ctx.stroke();
  ctx.fillStyle='#747d6a';ctx.fillRect(-15,-3,6,13);ctx.fillRect(10,-3,6,13);
+ // Arms react to motion and sword swing.
+ const armLift=slash>0?-8:Math.max(-7,Math.min(8,p.vy*.5));
  ctx.strokeStyle='#b98260';ctx.lineWidth=6;
- ctx.beginPath();ctx.moveTo(-8,-15);ctx.lineTo(-17,-4);ctx.moveTo(8,-15);ctx.lineTo(19,-7);ctx.stroke();
- // Baş
- ctx.fillStyle='#d9ae8d';ctx.beginPath();ctx.arc(0,-28,10,0,7);ctx.fill();
+ ctx.beginPath();
+ ctx.moveTo(-8,-15);ctx.lineTo(-17,-4+armLift);
+ ctx.moveTo(8,-15);ctx.lineTo(19,-7+armLift);ctx.stroke();
+ // Head
+ ctx.fillStyle='#d9ae8d';ctx.beginPath();ctx.arc(0,-28,10,0,Math.PI*2);ctx.fill();
  poly([[-10,-27],[-8,-38],[4,-39],[10,-32],[5,-31],[0,-35],[-5,-30]],'#453a32');
- // Çift kılıç
+ // ODM canisters
+ ctx.fillStyle='#6c766b';ctx.fillRect(-17,-8,5,13);ctx.fillRect(12,-8,5,13);
+ ctx.fillStyle='#b9c5bd';ctx.fillRect(-16,-6,3,7);ctx.fillRect(13,-6,3,7);
+ // Dual blades
  ctx.save();ctx.rotate(p.dir===1?-.3:Math.PI+.3);
  ctx.fillStyle='#e2ecee';poly([[12,-7],[43,-13],[44,-9],[14,-3]],'#e2ecee');
- ctx.fillStyle='#72553b';ctx.fillRect(9,-12,5,13);ctx.restore();
+ ctx.fillStyle='#879da0';ctx.fillRect(17,-8,22,1);
+ ctx.fillStyle='#72553b';ctx.fillRect(9,-12,5,13);
  ctx.restore();
+ ctx.restore();
+ // ODM cable: shoot animation, then taut cable.
  if(hook){
-  ctx.strokeStyle='#343c40';ctx.lineWidth=2;
-  ctx.beginPath();ctx.moveTo(x+18,y+18);ctx.lineTo(hook.x,hook.y);ctx.stroke();
-  ctx.fillStyle='#f0f1df';ctx.beginPath();ctx.arc(hook.x,hook.y,4,0,7);ctx.fill();
+  const sx=x+18,sy=y+18;
+  let ex=hook.x,ey=hook.y;
+  if(hook.phase==='shoot'){
+   const t=Math.min(1,hook.t/7);
+   ex=hook.fromX+(hook.x-hook.fromX)*t;
+   ey=hook.fromY+(hook.y-hook.fromY)*t;
+  }
+  ctx.save();
+  ctx.strokeStyle='#202b2c';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(sx,sy);
+  const bend=Math.sin(frame*.25)*2;
+  ctx.quadraticCurveTo((sx+ex)/2+bend,(sy+ey)/2,ex,ey);ctx.stroke();
+  ctx.strokeStyle='#c0d1ce';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(ex,ey);ctx.stroke();
+  // Hook head and tiny impact flash.
+  ctx.translate(ex,ey);
+  ctx.rotate(Math.atan2(ey-sy,ex-sx));
+  ctx.strokeStyle='#e0e7e2';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(-7,0);ctx.lineTo(5,0);ctx.lineTo(9,-5);
+  ctx.moveTo(5,0);ctx.lineTo(9,5);ctx.stroke();
+  if(hook.phase==='attached'&&hook.t%8<4){
+   ctx.fillStyle='#fff4c9';ctx.beginPath();ctx.arc(0,0,3,0,Math.PI*2);ctx.fill();
+  }
+  ctx.restore();
  }
+ // Sweeping sword trail.
  if(slash>0){
-  ctx.strokeStyle='#f9f6d9';ctx.lineWidth=5;ctx.beginPath();
-  ctx.arc(x+18+p.dir*25,y+27,49,-1.3,1.2);ctx.stroke();
+  const progress=1-slash/17;
+  ctx.save();ctx.strokeStyle='#f9f6d9';ctx.lineWidth=5;ctx.lineCap='round';
+  ctx.globalAlpha=Math.min(1,slash/7);
+  ctx.beginPath();
+  ctx.arc(x+18+p.dir*25,y+27,49,
+   p.dir===1?-1.5+progress*.3:Math.PI+1.5-progress*.3,
+   p.dir===1?-.1+progress*.3:Math.PI+.1-progress*.3);
+  ctx.stroke();ctx.restore();
  }
 }
 function titan(t){
  ctx.save();ctx.translate(t.x,t.y);
- let s=t.flash?'#f7d4bc':t.skin;
- // Gövde
- ctx.fillStyle=s;ctx.beginPath();ctx.ellipse(34,48,26,36,0,0,7);ctx.fill();
- ctx.beginPath();ctx.ellipse(8,62,10,35,-.3,0,7);ctx.ellipse(61,62,10,35,.3,0,7);ctx.fill();
- // Bacaklar
+ const s=t.flash?'#f7d4bc':t.skin;
+ const walk=Math.sin(t.phase)*4;
+ // Body
+ ctx.fillStyle=s;ctx.beginPath();ctx.ellipse(34,48,26,36,0,0,Math.PI*2);ctx.fill();
+ ctx.beginPath();ctx.ellipse(8,62,10,35,-.3,0,Math.PI*2);
+ ctx.ellipse(61,62,10,35,.3,0,Math.PI*2);ctx.fill();
+ // Swinging legs
  ctx.strokeStyle=s;ctx.lineWidth=17;ctx.lineCap='round';
- ctx.beginPath();ctx.moveTo(23,73);ctx.lineTo(17,119);ctx.lineTo(10,139);
- ctx.moveTo(44,73);ctx.lineTo(51,119);ctx.lineTo(57,139);ctx.stroke();
- ctx.fillStyle='#79635b';ctx.fillRect(1,136,22,8);ctx.fillRect(48,136,22,8);
- // Baş ve saç
- ctx.fillStyle=s;ctx.beginPath();ctx.ellipse(34,7,18,24,0,0,7);ctx.fill();
+ ctx.beginPath();ctx.moveTo(23,73);ctx.lineTo(17+walk,119);ctx.lineTo(10+walk,139);
+ ctx.moveTo(44,73);ctx.lineTo(51-walk,119);ctx.lineTo(57-walk,139);ctx.stroke();
+ ctx.fillStyle='#79635b';ctx.fillRect(1+walk,136,22,8);ctx.fillRect(48-walk,136,22,8);
+ // Head and hair
+ ctx.fillStyle=s;ctx.beginPath();ctx.ellipse(34,7,18,24,0,0,Math.PI*2);ctx.fill();
  poly([[17,-1],[13,-14],[24,-20],[40,-19],[53,-10],[50,-1],[43,-8],[34,-10],[25,-4]],'#51443d');
  ctx.fillStyle='#493a36';ctx.fillRect(22,2,8,3);ctx.fillRect(38,2,8,3);
  ctx.fillStyle='#f4e2d1';ctx.fillRect(27,13,15,4);
  ctx.fillStyle='#8e493e';ctx.fillRect(29,14,11,2);
- // Ensedeki hedef
+ // Nape target glow
  ctx.fillStyle='#9b5145';ctx.fillRect(19,36,30,11);
  ctx.fillStyle='#ffb5a0';ctx.fillRect(23,39,22,4);
- // Can barı
+ ctx.globalAlpha=.35+Math.sin(frame*.18)*.15;
+ ctx.strokeStyle='#ffb5a0';ctx.lineWidth=2;ctx.strokeRect(16,33,36,17);
+ ctx.globalAlpha=1;
+ // Health bar
  ctx.fillStyle='#292929';ctx.fillRect(0,-30,68,6);
  ctx.fillStyle='#d85042';ctx.fillRect(1,-29,66*Math.max(0,t.hp)/t.max,4);
  ctx.restore();
@@ -264,6 +377,7 @@ function draw(){
  if(shake>1)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
  background();
  for(let t of enemies)titan(t);
+ drawParticles();
  if(invuln%10<6||invuln===0)soldier();
  if(gameover||win){
   ctx.fillStyle='#101923d9';ctx.fillRect(0,0,W,H);
@@ -276,6 +390,7 @@ function draw(){
 }
 let last=0,acc=0;
 function loop(t){
+ if(!last)last=t;
  acc+=Math.min(40,t-last);last=t;
  while(acc>=16.67){update();acc-=16.67;}
  draw();requestAnimationFrame(loop);
